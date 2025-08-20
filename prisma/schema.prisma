@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"  // สร้าง Prisma Client สำหรับ JavaScript/TypeScript
+  output   = "../generated/prisma"  // โฟลเดอร์ที่เก็บ generated code
+}
+
+datasource db {
+  provider = "mongodb"  // ใช้ฐานข้อมูล MongoDB
+  url      = env("DATABASE_URL")  // URL เชื่อมต่อจาก .env file
+}
+
+//ตาราง USERS (ผู้ใช้งาน)
+model User {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId  // ID หลัก (MongoDB ObjectId)
+  email     String    @unique  // อีเมล (ไม่ซ้ำ)
+  password  String    // รหัสผ่าน (เข้ารหัสแล้ว)
+  name      String    // ชื่อ-นามสกุล
+  role      Role      @default(NURSE)  // บทบาท (พยาบาล/หัวหน้าพยาบาล)
+  createdAt DateTime? @default(now())  // วันที่สร้าง
+  updatedAt DateTime? @updatedAt  // วันที่แก้ไขล่าสุด
+
+  // ความสัมพันธ์
+  shiftAssignments ShiftAssignment[]  // เวรที่ได้รับมอบหมาย
+  
+  @@map("users")  // ชื่อ collection ใน MongoDB
+}
+
+// ตาราง SHIFTS (เวรงาน)
+model Shift {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId  // ID หลัก
+  name        String   // ชื่อเวร เช่น "เวร แผนกอายุรกรรม"
+  startTime   String   // เวลาเริ่ม เช่น "08:00"
+  endTime     String   // เวลาสิ้นสุด เช่น "16:00"
+  date        DateTime // วันที่ทำงาน
+  department  String?  // แผนกที่ทำงาน
+  description String?  // รายละเอียดเพิ่มเติม
+  createdAt   DateTime @default(now())  // วันที่สร้าง
+  updatedAt   DateTime @updatedAt  // วันที่แก้ไขล่าสุด
+
+  // ความสัมพันธ์
+  assignments ShiftAssignment[]  // การมอบหมายเวรให้พยาบาล
+
+  @@map("shifts")  // ชื่อ collection ใน MongoDB
+}
+
+// ตาราง SHIFT_ASSIGNMENTS (การจัดเวร)
+model ShiftAssignment {
+  id      String   @id @default(auto()) @map("_id") @db.ObjectId  // ID หลัก
+  userId  String   @db.ObjectId  // ID ของพยาบาล
+  shiftId String   @db.ObjectId  // ID ของเวร
+  status  String?  @default("assigned")  // สถานะ: assigned, LEAVE_REQUESTED, APPROVED_LEAVE
+
+  // ความสัมพันธ์ ตาราง
+  user         User                    @relation(fields: [userId], references: [id], onDelete: Cascade)   // เชื่อมกับตาราง Users
+  shift Shift @relation(fields: [shiftId], references: [id], onDelete: Cascade) // เชื่อมกับตาราง Shifts
+
+  createdAt DateTime @default(now())  // วันที่จัดเวร
+  updatedAt DateTime @updatedAt  // วันที่แก้ไขล่าสุด
+
+  @@unique([userId, shiftId])  // ห้ามจัดเวรซ้ำ (1 คน 1 เวร)
+  @@map("shift_assignments")  // ชื่อ collection ใน MongoDB
+}
+
+// บทบาทผู้ใช้
+enum Role {
+  NURSE      // พยาบาล
+  HEAD_NURSE // หัวหน้าพยาบาล
+}
+
+// สถานะคำขอลา
+enum LeaveRequestStatus {
+  PENDING   // รอการอนุมัติ
+  APPROVED  // อนุมัติแล้ว
+  REJECTED  // ปฏิเสธแล้ว
+}
