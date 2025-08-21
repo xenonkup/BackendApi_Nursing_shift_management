@@ -15,13 +15,18 @@ dotenv.config(); // โหลดตัวแปรจาก .env file
 
 const app = express();
 const prisma = new PrismaClient(); // เชื่อมต่อฐานข้อมูล MongoDB
-const port = 3001; // พอร์ตที่ server จะรัน
+const port = process.env.PORT || 3001; // พอร์ตที่ server จะรัน
 
 // ===== MIDDLEWARE =====
 // อนุญาตให้ Frontend เรียก API ข้าม domain
 app.use(
   cors({
-    origin: ["http://localhost:3000", "http://127.0.0.1:3000"], // อนุญาต Frontend
+    origin: [
+      "http://localhost:3000", 
+      "http://127.0.0.1:3000",
+      "https://frontend-nursing-shift-management.vercel.app",
+      "https://*.vercel.app" // อนุญาต Vercel domains
+    ], 
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -86,8 +91,11 @@ app.get("/api/debug/nurses", auth, async (req: any, res: Response) => {
 });
 
 //START SERVER
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+  });
+}
 
 export { prisma }; // ส่งออก prisma เพื่อใช้ใน controllers
+export default app; // Export app สำหรับ Vercel
